@@ -9,10 +9,22 @@
     <script type="module">
       import { io } from 'https://cdn.socket.io/4.7.2/socket.io.esm.min.js';
 
-      const socket = io();
-      socket.on('connect', () => {
-        if (socket.recovered) {
-          alert('Connection recovered');
+      const getUsername = async () => {
+        const username = localStorage.getItem('username');
+        if (username) return username;
+
+        const res = await fetch(
+          'https://random-data-api.com/api/users/random_user'
+        );
+        const { username: randomUsername } = await res.json();
+        localStorage.setItem('username', randomUsername);
+        return randomUsername;
+      };
+
+      const socket = io({
+        auth: {
+          username: await getUsername(),
+          serverOffset: 0
         }
       });
 
@@ -20,12 +32,16 @@
       const $input = document.querySelector('input');
       const $ul = document.querySelector('ul');
 
-      socket.on('chat message', (msg) => {
-        const li = `<li>${msg}</li>`;
+      socket.on('chat message', (msg, serverOffset, username) => {
+        const li = `<li>${username}: ${msg}</li>`;
         $ul.insertAdjacentHTML('beforeend', li);
+
+        socket.auth.serverOffset = serverOffset;
+
+        $ul.scrollTo(0, $ul.scrollHeight);
       });
 
-      $form.addEventListener('submit', (e) => {
+      $form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if ($input.value) {
           socket.emit('chat message', $input.value);
@@ -75,7 +91,7 @@
         border: 1px solid #ccc;
         border-radius: 4px;
         overflow: hidden;
-        width: 350px;
+        width: 400px;
         height: 100%;
         position: relative;
       }
